@@ -1,0 +1,55 @@
+# Garden Design DoE - 2x2 DoE, reference Six Sigma with R, Springer, pp 201 to 212
+
+library(ggplot2)
+library(SixSigma)
+library(dplyr)
+library(nortest)
+
+setwd('C:/Users/Peter/Documents/EGR 499 S23')
+
+# Set up the experimental design, generate factors by specifying the pattern of their levels.
+# NB: sunlight(-) = low, sunlight(+) = high, water(-) = weekly, water(+) = daily
+GardenDesign <- expand.grid(sunlight = gl(2, 4, labels = c("-", "+")),# gen factor levels with gl()
+		                        water = gl(2, 4, labels = c("-", "+")),   # n, (2), an integer giving the number of levels.
+		                                                                  # k, (1), an integer giving the number of replications.
+		                        growth = NA)
+GardenDesign
+
+GardenDesign$ord <- sample(1:2, 2) # gen random sample of elements from vector ord
+GardenDesign[order(GardenDesign$ord),]
+GardenDesign
+
+write.csv(GardenDesign, file = 'GardenDesign.csv', row.names = FALSE)   # write design schedule to a .csv file
+GardenDesign_w_results <- read.csv(file = 'GarDesRes.csv')
+GardenDesign_w_results
+
+# Show average scores for each experiment
+aggregate(growth ~ sunlight + water, FUN = mean, data = GardenDesign_w_results)
+
+# fit a linear model to the experimental results
+mod0 <- lm(growth ~ sunlight + water +
+				            sunlight * water,
+		                data = GardenDesign_w_results)
+summary(mod0)
+
+mod1 <- aov(growth ~ sunlight + water +
+                     sunlight * water,
+                     data = GardenDesign_w_results)
+summary(mod1)
+
+# Develop the interactive effects plot using the ggplot package.
+intEf <- aggregate(growth ~ sunlight + water, FUN = mean, data = GardenDesign_w_results)
+p <- ggplot(intEf, aes(x = sunlight, y = growth, color = water)) +
+	   geom_point() + geom_line(aes(group = water)) + ggtitle('Main and Interactive Effects') +
+     theme(plot.title = element_text(hjust = 0.5))
+print(p)
+Sys.sleep(2)
+
+par(mfrow=c(2,2))           # Analyze the residuals, check for normal distribution ...
+plot(mod0)
+box("outer")
+par(mfrow=c(1,1))
+
+shapiro.test(residuals(mod0))
+lillie.test(residuals(mod0))
+
